@@ -76,8 +76,8 @@ def dozip(zip_file):
 #     return extracted_messages
 
 def getContent(msgObj):
-    if msgObj.is_multipart():
-        for part in msgObj.walk():
+
+    for part in msgObj:
             print(part)
     else:
         body = msgObj.get_payload(decode=True)
@@ -106,7 +106,7 @@ def parseEmail(email_file,zippa):
             #
             # print(subject)
             for m in msg.walk():
-                getContent(m)
+                getContent(m.get_payload())
                 break
 
         else:
