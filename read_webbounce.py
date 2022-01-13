@@ -57,6 +57,23 @@ def dozip(zip_file):
             print(i)
             parseEmail(i,zip_file)
             break
+# def extract_message_payload(mes, parent_subject=None):
+#     """
+#     Extracts recursively the payload of the messages contained in :mes:
+#     When a message is embedded in another, it uses the parameter :parent_subject:
+#     to set the subject properly (it uses the parent's subject)
+#     """
+#     extracted_messages = []
+#     if mes.is_multipart():
+#         if parent_subject is None:
+#             subject_for_child = mes.get('Subject')
+#         else:
+#             subject_for_child = parent_subject
+#         for part in mes.get_payload():
+#             extracted_messages.extend(extract_message_payload(part, subject_for_child))
+#     else:
+#         extracted_messages.append(CustomMessage(mes.get_payload(decode=True), parent_subject,  mes.get_content_type()))
+#     return extracted_messages
 
 def parseEmail(email_file,zippa):
     with zipfile.ZipFile(zippa,'r') as zip:
@@ -72,8 +89,14 @@ def parseEmail(email_file,zippa):
         else:
             raise TypeError('Invalid message type: %s' % type(imgdata))
         if msg.is_multipart():
-            for a in msg.walk():
-                print(a.get_content_type())
+            subject = msg.get('Subject')
+            print(len(msg.get_payload()))
+            for a in msg.get_payload():
+                if a.is_multipart():
+                    for b in a.get_payload():
+                        print(b)
+
+            print(subject)
         else:
             body = msg.get_payload(decode=True)
 
