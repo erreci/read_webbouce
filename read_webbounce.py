@@ -75,6 +75,14 @@ def dozip(zip_file):
 #         extracted_messages.append(CustomMessage(mes.get_payload(decode=True), parent_subject,  mes.get_content_type()))
 #     return extracted_messages
 
+def getContent(msgObj):
+    if msgObj.is_multipart():
+        for part in msgObj.walk():
+            print(part)
+    else:
+        body = msgObj.get_payload(decode=True)
+
+
 def parseEmail(email_file,zippa):
     with zipfile.ZipFile(zippa,'r') as zip:
         # with zip.open(email_file) as singlefile:
@@ -89,16 +97,21 @@ def parseEmail(email_file,zippa):
         else:
             raise TypeError('Invalid message type: %s' % type(imgdata))
         if msg.is_multipart():
-            subject = msg.get('Subject')
-            print(len(msg.get_payload()))
-            for a in msg.get_payload():
-                if a.is_multipart():
-                    for b in a.get_payload():
-                        print(b)
+            # subject = msg.get('Subject')
+            # print(len(msg.get_payload()))
+            # for a in msg.get_payload():
+            #     if a.is_multipart():
+            #         for b in a.get_payload():
+            #             print(b)
+            #
+            # print(subject)
+            for m in msg.walk():
+                getContent(m)
+                break
 
-            print(subject)
         else:
             body = msg.get_payload(decode=True)
+
 
 
 def unzipl(zip_file):
