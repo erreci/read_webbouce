@@ -78,7 +78,8 @@ def dozip(zip_file):
 def getContent(msgObj):
 
     for part in msgObj:
-            print(part)
+        for subpart in part.get_payload():
+            print(subpart.get('X-Tap-ID'))
     else:
         body = msgObj.get_payload(decode=True)
 
