@@ -3,11 +3,16 @@ import email
 import sys
 import getopt
 import json
+import re
 import zipfile
 import logging
+import mailparser
 from datetime import datetime
 from datetime import date, timedelta
 from time import sleep, time
+
+
+
 '''
 multipart/mixed
  |
@@ -21,8 +26,8 @@ multipart/mixed
  |   +- image/png
  |
  +-- application/msexcel
- 
- 
+
+
  multipart/alternative
  |
  +- text/plain
@@ -30,7 +35,7 @@ multipart/mixed
       |
       +- text/html
       +- image/jpeg
- 
+
 '''
 
 '''
@@ -41,8 +46,8 @@ mylogs.setLevel(logging.DEBUG)
 
 today = datetime.now()
 YYYY = today.strftime("%Y")
-MM   = today.strftime("%m")
-NOW  = today.strftime("%Y%m%d")
+MM = today.strftime("%m")
+NOW = today.strftime("%Y%m%d")
 # BASE_LOG = "/data/logs/read_webbounce/"
 
 if sys.platform == 'darwin':
@@ -52,10 +57,10 @@ elif sys.platform == 'linux':
 else:
     BASE_LOG = "C:/Users/LTAPPS01/temp/webbounce_emails"
 
-LOG_NAME = BASE_LOG + "/" + YYYY + "/" + MM + "/" + NOW +'_read_webbounce.log'
+LOG_NAME = BASE_LOG + "/" + YYYY + "/" + MM + "/" + NOW + '_read_webbounce.log'
 
 try:
-    os.makedirs(BASE_LOG + "/" + YYYY + "/" + MM )
+    os.makedirs(BASE_LOG + "/" + YYYY + "/" + MM)
 except FileExistsError:
     # directory already exists
     pass
@@ -75,6 +80,7 @@ onstream.setFormatter(streamformat)
 mylogs.addHandler(onfile)
 mylogs.addHandler(onstream)
 
+
 def dozip(zip_file):
     if not os.path.exists(zip_file):
         mylogs.info("The File %s it's not present " % zip_file)
@@ -83,29 +89,12 @@ def dozip(zip_file):
     if filesinzip:
         print("found: %d" % len(filesinzip))
         for i in filesinzip:
-            print(i)
-            parseEmail(i,zip_file)
-            break
-# def extract_message_payload(mes, parent_subject=None):
-#     """
-#     Extracts recursively the payload of the messages contained in :mes:
-#     When a message is embedded in another, it uses the parameter :parent_subject:
-#     to set the subject properly (it uses the parent's subject)
-#     """
-#     extracted_messages = []
-#     if mes.is_multipart():
-#         if parent_subject is None:
-#             subject_for_child = mes.get('Subject')
-#         else:
-#             subject_for_child = parent_subject
-#         for part in mes.get_payload():
-#             extracted_messages.extend(extract_message_payload(part, subject_for_child))
-#     else:
-#         extracted_messages.append(CustomMessage(mes.get_payload(decode=True), parent_subject,  mes.get_content_type()))
-#     return extracted_messages
+            # print(i)
+            parseEmail(i, zip_file)
+            # break
+
 
 def getContent(msgObj):
-
     for part in msgObj:
         for subpart in part.get_payload():
             print(subpart.get('X-Tap-ID'))
@@ -113,35 +102,30 @@ def getContent(msgObj):
         body = msgObj.get_payload(decode=True)
 
 
-def parseEmail(email_file,zippa):
-    with zipfile.ZipFile(zippa,'r') as zip:
+def parseEmail(email_file, zippa):
+    with zipfile.ZipFile(zippa, 'r') as zip:
         # with zip.open(email_file) as singlefile:
         #     # for row in singlefile:
         #     #     print(row)
         imgdata = zip.read(email_file)
         if isinstance(imgdata, bytes):
-            msg = email.message_from_bytes(imgdata)
+            # msg = email.message_from_bytes(imgdata)
+            msg = mailparser.parse_from_bytes(imgdata)
 
         elif isinstance(imgdata, str):
-            msg = email.message_from_string(imgdata)
+            msg = mailparser.parse_from_string(imgdata)
         else:
             raise TypeError('Invalid message type: %s' % type(imgdata))
-        if msg.is_multipart():
-            # subject = msg.get('Subject')
-            # print(len(msg.get_payload()))
-            # for a in msg.get_payload():
-            #     if a.is_multipart():
-            #         for b in a.get_payload():
-            #             print(b)
-            #
-            # print(subject)
-            for m in msg.walk():
-                getContent(m.get_payload())
-                break
 
+        regex = r"X-Tap-ID:\s*([^\n\r]+)"
+        matches = re.search(regex, msg.body, re.MULTILINE | re.IGNORECASE)
+        mailid = ''
+        if matches is not None or matches == 'Not found':
+            mailid = matches.group(1)
         else:
-            body = msg.get_payload(decode=True)
-
+            mailid = "not found"
+        print(f"{email_file} Date: {msg.date} {msg.headers.get('In-Reply-To')} mail_id: {mailid}")
+        # print(f"Subj: {msg.subject}")
 
 
 def unzipl(zip_file):
@@ -165,12 +149,12 @@ def unzipl(zip_file):
         return False
     return zip_files
 
-def main(argv):
 
+def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"hp:",["zipfile="])
+        opts, args = getopt.getopt(argv, "hp:", ["zipfile="])
     except getopt.GetoptError:
-        print (f"read_webbouce -p <zipfile>")
+        print(f"read_webbouce -p <zipfile>")
         sys.exit(2)
     opt_papername = ''
     for opt, arg in opts:
