@@ -109,7 +109,9 @@ def parseEmail(email_file, zippa):
         # read file in zip
         imgdata = zip.read(email_file)
         try:
-            print(type(imgdata))
+            # print(type(imgdata))
+            # msg_raw = email.message_from_bytes(imgdata)
+
             if isinstance(imgdata, bytes):
                 # msg = email.message_from_bytes(imgdata)
                 msg = mailparser.parse_from_bytes(imgdata)
@@ -119,11 +121,25 @@ def parseEmail(email_file, zippa):
                 raise TypeError('Invalid message type: %s' % type(imgdata))
         except mailparser.MailParser.MailParserError as sss:
             print(sss)
-
+        # print("-", end='')
+        if email_file == "email_backup.021/506220_87a2ceedfetg@esa8_utexas_iphmx_com.eml":
+            print("pl")
+        # if msg.text_not_managed:   # rfc822-header  content
+        #     print(f"ddddd {msg.text_not_managed}" )
         '''
             get email data
         '''
         email_data = msg.date
+        '''
+             get from from autoreply email  filter the mail server address              
+        '''
+        email_from = msg.headers.get('From')
+        if re.search(r'postmaster',email_from, re.IGNORECASE):
+            email_from = ''
+        elif re.search(r'MAILER-DAEMON',email_from, re.IGNORECASE):
+            email_from = ''
+        elif re.search(r'AntiSpam',email_from, re.IGNORECASE):
+            email_from = ''
         '''
             get message id 
         '''
@@ -135,7 +151,7 @@ def parseEmail(email_file, zippa):
             mailid = matches.group(1)
         else:
             #  try to get from html using message_id as value
-            regex = r"message_id=\s*([^&]+)"
+            regex = r"message_id=\s*([^\"\&\s]+)"
             if msg.text_html:
                 matches = re.search(regex, msg.text_html[0], re.MULTILINE | re.IGNORECASE)
                 if matches is not None or matches == 'Not found':
@@ -144,15 +160,33 @@ def parseEmail(email_file, zippa):
                 mailid = "not found"
         #    get recipient mail
         recipient_email = 'not found'
-        regex = r"[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}"
-        if msg.body:
+        #regex = r"[a-z0-9]+[\._]?[a-z0-9]+[@][\w\-]+[.]\w{2,3}"
+        regex = r"([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+"
+
+        if msg.text_plain:
+            if len(msg.text_plain) > 0:
+                matches = re.search(regex, msg.text_plain[0], re.MULTILINE | re.IGNORECASE)
+                if matches is not None or matches == 'Not found':
+                    if matches.group():
+                        recipient_email = matches.group()
+            else:
+                matches = re.search(regex, msg.text_plain, re.MULTILINE | re.IGNORECASE)
+                if matches is not None or matches == 'Not found':
+                    if matches.group():
+                        recipient_email = matches.group()
+        if recipient_email == 'not found' and email_from != '':
+            recipient_email = email_from
+
+        elif msg.body:
             matches = re.search(regex, msg.body, re.MULTILINE | re.IGNORECASE)
             if matches is not None or matches == 'Not found':
                 if matches.group():
                     recipient_email = matches.group()
 
 
-        print(f"{email_file} Date: {email_data} mail:{recipient_email} mail_id: {mailid}")
+        print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
+        if email_from == '' and mailid == '' and recipient_email == '':
+            mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
         # print(f"Subj: {msg.subject}")
 
 
