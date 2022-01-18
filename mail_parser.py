@@ -11,7 +11,9 @@ from datetime import datetime
 from datetime import date, timedelta
 from time import sleep, time
 
-
+'''
+ using wrapper https://github.com/SpamScope/mail-parser
+'''
 
 '''
 multipart/mixed
@@ -104,27 +106,53 @@ def getContent(msgObj):
 
 def parseEmail(email_file, zippa):
     with zipfile.ZipFile(zippa, 'r') as zip:
-        # with zip.open(email_file) as singlefile:
-        #     # for row in singlefile:
-        #     #     print(row)
+        # read file in zip
         imgdata = zip.read(email_file)
-        if isinstance(imgdata, bytes):
-            # msg = email.message_from_bytes(imgdata)
-            msg = mailparser.parse_from_bytes(imgdata)
+        try:
+            print(type(imgdata))
+            if isinstance(imgdata, bytes):
+                # msg = email.message_from_bytes(imgdata)
+                msg = mailparser.parse_from_bytes(imgdata)
+            elif isinstance(imgdata, str):
+                msg = mailparser.parse_from_string(imgdata)
+            else:
+                raise TypeError('Invalid message type: %s' % type(imgdata))
+        except mailparser.MailParser.MailParserError as sss:
+            print(sss)
 
-        elif isinstance(imgdata, str):
-            msg = mailparser.parse_from_string(imgdata)
-        else:
-            raise TypeError('Invalid message type: %s' % type(imgdata))
-
+        '''
+            get email data
+        '''
+        email_data = msg.date
+        '''
+            get message id 
+        '''
+        mailid = ''
         regex = r"X-Tap-ID:\s*([^\n\r]+)"
         matches = re.search(regex, msg.body, re.MULTILINE | re.IGNORECASE)
-        mailid = ''
+
         if matches is not None or matches == 'Not found':
             mailid = matches.group(1)
         else:
-            mailid = "not found"
-        print(f"{email_file} Date: {msg.date} {msg.headers.get('In-Reply-To')} mail_id: {mailid}")
+            #  try to get from html using message_id as value
+            regex = r"message_id=\s*([^&]+)"
+            if msg.text_html:
+                matches = re.search(regex, msg.text_html[0], re.MULTILINE | re.IGNORECASE)
+                if matches is not None or matches == 'Not found':
+                    mailid = matches.group(1)
+            else:
+                mailid = "not found"
+        #    get recipient mail
+        recipient_email = 'not found'
+        regex = r"[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}"
+        if msg.body:
+            matches = re.search(regex, msg.body, re.MULTILINE | re.IGNORECASE)
+            if matches is not None or matches == 'Not found':
+                if matches.group():
+                    recipient_email = matches.group()
+
+
+        print(f"{email_file} Date: {email_data} mail:{recipient_email} mail_id: {mailid}")
         # print(f"Subj: {msg.subject}")
 
 
