@@ -2,15 +2,16 @@ import os
 import email
 import sys
 import getopt
-import json
+import argparse
+#import json
 import re
 import zipfile
 import logging
 import mailparser
 from datetime import datetime
-from datetime import date, timedelta
-from time import sleep, time
-
+#from datetime import date, timedelta
+#from time import sleep, time
+__version__ = '0.1'
 '''
  using wrapper https://github.com/SpamScope/mail-parser
 '''
@@ -121,7 +122,7 @@ def parseEmail(email_file, zippa):
                 raise TypeError('Invalid message type: %s' % type(imgdata))
         except mailparser.MailParser.MailParserError as sss:
             print(sss)
-        # print("-", end='')
+        print("-", end='')
         if email_file == "email_backup.021/506220_87a2ceedfetg@esa8_utexas_iphmx_com.eml":
             print("pl")
         # if msg.text_not_managed:   # rfc822-header  content
@@ -161,8 +162,8 @@ def parseEmail(email_file, zippa):
         #    get recipient mail
         recipient_email = 'not found'
         #regex = r"[a-z0-9]+[\._]?[a-z0-9]+[@][\w\-]+[.]\w{2,3}"
-        regex = r"([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+"
-
+        regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
+        mail_text = ''
         if msg.text_plain:
             if len(msg.text_plain) > 0:
                 matches = re.search(regex, msg.text_plain[0], re.MULTILINE | re.IGNORECASE)
@@ -174,19 +175,20 @@ def parseEmail(email_file, zippa):
                 if matches is not None or matches == 'Not found':
                     if matches.group():
                         recipient_email = matches.group()
-        if recipient_email == 'not found' and email_from != '':
-            recipient_email = email_from
-
+            mail_text = msg.text_plain
         elif msg.body:
+            mail_text = msg.text_plain
             matches = re.search(regex, msg.body, re.MULTILINE | re.IGNORECASE)
             if matches is not None or matches == 'Not found':
                 if matches.group():
                     recipient_email = matches.group()
+        if recipient_email == 'not found' and email_from != '':
+            recipient_email = email_from
 
 
-        print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
-        if email_from == '' and mailid == '' and recipient_email == '':
-            mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
+        # print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
+        if mailid == '' and recipient_email == '':
+            mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}|text: {mail_text}")
         # print(f"Subj: {msg.subject}")
 
 
@@ -211,24 +213,13 @@ def unzipl(zip_file):
         return False
     return zip_files
 
-
 def main(argv):
-    try:
-        opts, args = getopt.getopt(argv, "hp:", ["zipfile="])
-    except getopt.GetoptError:
-        print(f"read_webbouce -p <zipfile>")
-        sys.exit(2)
-    opt_papername = ''
-    for opt, arg in opts:
-        if opt == '-h':
-            print(f"read_webbouce -p <zipfile>")
-            sys.exit()
-        elif opt in ("-p", "--zipfile") and arg != '':
-            opt_papername = arg
-    if opt_papername == '':
-        print(f"read_webbouce -p <zipfile>")
-        sys.exit()
-    dozip(BASE_LOG + "/" + opt_papername)
+    if argv.zip:
+       dozip(BASE_LOG + "/" + argv.zip)
+    elif argv.path:
+        pass
+
+
     # for subdir, dirs, files in os.walk(root_dir):
     #     for file in files:
     #         print( os.path.join(subdir, file))
@@ -240,7 +231,12 @@ def main(argv):
 
 if __name__ == "__main__":
     try:
-        main(sys.argv[1:])
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-z", "--zip", type=str, help="using zip file")
+        parser.add_argument("-p", "--path", type=str, help="path of unzipped files")
+        parser.add_argument('-v', '--version', action='version', version='%(prog)s {} by ErreCi (2022)'.format(__version__))
+        args = parser.parse_args()
+        main(args)
 
     except KeyboardInterrupt:
         mylogs.error("Process interrupted by KeyboardInterrupt")
