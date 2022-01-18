@@ -217,16 +217,17 @@ def main(argv):
     if argv.zip:
        dozip(BASE_LOG + "/" + argv.zip)
     elif argv.path:
-        pass
-
-
-    # for subdir, dirs, files in os.walk(root_dir):
-    #     for file in files:
-    #         print( os.path.join(subdir, file))
-    #         with open(os.path.join(subdir, file), 'r') as mail_file:
-    #             mail_file_obj = email.message_from_file(mail_file)
-    #             print(mail_file_obj)
-    #         exit(1)
+        if os.path.isdir(argv.path):
+            for subdir, dirs, files in os.walk(argv.path):
+                for file in files:
+                    print( os.path.join(subdir, file))
+                    # with open(os.path.join(subdir, file), 'r') as mail_file:
+                        # mail_file_obj = email.message_from_file(mail_file)
+                        # print(mail_file_obj)
+                    exit(1)
+        else:
+            print(f"The path {argv.path} doesnt exist")
+            exit(1)
 
 
 if __name__ == "__main__":
