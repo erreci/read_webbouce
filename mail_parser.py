@@ -113,15 +113,15 @@ def parseEmailZip(email_file, zippa):
     with zipfile.ZipFile(zippa, 'r') as zip:
         # read file in zip
         imgdata = zip.read(email_file)
-        parseEmail(imgdata)
+        parseEmail(imgdata,email_file)
 
 def parseEmailFile(email_file):
     with open(email_file, 'rb') as emfile:
         imgdata = emfile.read()
-        parseEmail(imgdata)
+        parseEmail(imgdata, email_file)
         exit(1)
 
-def parseEmail(imgdata):
+def parseEmail(imgdata,email_file):
 
         try:
             # print(type(imgdata))
@@ -199,15 +199,19 @@ def parseEmail(imgdata):
             recipient_email = email_from
 
 
-        # print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
-        if mailid == '' and recipient_email == '':
+        #print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
+        print(f"Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
+
+        if mailid == '' or recipient_email == '':
             mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}|text: {mail_text}")
-        updatedb(mailid)
+        if mailid != '':
+            updatedb(mailid)
         # print(f"Subj: {msg.subject}")
 
 def updatedb(msgid):
-    Database.execute("select * from mail_email me where id = %s",(msgid))
+    Database.execute("select * from mail_email where id = %s",(msgid,))
     dbrow = Database.fetchall()
+    print("-->", dbrow)
     if len(dbrow) > 0:
         print(dbrow)
 
