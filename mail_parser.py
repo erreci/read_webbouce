@@ -234,8 +234,15 @@ def unzipl(zip_file):
 
 def main(argv):
     if argv.db == 1:
-        if Database.connect("usamaildb8", "8bdliamasu", "mail", "usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com", "3306"):
+        # if Database.connect("usamaildb8", "8bdliamasu", "mail", "usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com", "3306"):
+        if Database.connect("usamaildb8", "8bdliamasu", "mail", "localhost", "3306"):
+
             print("ok db")
+        else:
+            print('failed to connect db')
+            exit(1)
+
+
     if argv.zip:
        dozip(argv.zip)
     elif argv.path:
