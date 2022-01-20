@@ -44,6 +44,21 @@ multipart/mixed
       +- image/jpeg
 
 '''
+'''
+bounce-type:
+policy-related
+bad-connection
+routing-errors
+other
+bad-mailbox
+bad-domain
+quota-issues
+inactive-mailbox
+relaying-issues
+no-answer-from-host
+spam-related
+message-expired
+'''
 
 '''
 Creating logger
@@ -114,6 +129,8 @@ def parseEmailZip(email_file, zippa):
         # read file in zip
         imgdata = zip.read(email_file)
         parseEmail(imgdata,email_file)
+        exit(1)
+
 
 def parseEmailFile(email_file):
     with open(email_file, 'rb') as emfile:
@@ -200,21 +217,21 @@ def parseEmail(imgdata,email_file):
 
 
         #print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
-        print(f"Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
+       
+        info_email = {'date': email_data,'email_from': email_from, 'mail':recipient_email,'mail_id':mailid, 'mail_text': mail_text}
 
         if mailid == '' or recipient_email == '':
-            mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}|text: {mail_text}")
+            mylogs.info(f"{email_file}|Date: {info_email['date']}|from: {info_email['email_from']}|mail:{info_email['mail']}|mail_id: {info_email['mail_id']}|text: {info_email['mail_text']}")
         if mailid != '':
-            updatedb(mailid)
+            updatedb(info_email)
         # print(f"Subj: {msg.subject}")
 
-def updatedb(msgid):
-    Database.execute("select * from mail_email where id = %s",(msgid,))
-    dbrow = Database.fetchall()
-    print("-->", dbrow)
-    if len(dbrow) > 0:
-        print(dbrow)
-
+def updatedb(info_email):
+    Database.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status) WHERE id = %s",(info_email['mail_id'],))
+    Database.commit()
+    if Database.rowcount() > 0:
+        mylogs.info(f"Updated mail_id: {info_email['mail_id']}")
+    
 def unzipl(zip_file):
     zippath = zip_file
     zip_files = []

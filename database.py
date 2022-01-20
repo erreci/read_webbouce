@@ -57,3 +57,8 @@ class Database:
     def close(cls):
         """Method used to close the databse connection"""
         cls.__connection.close()
+
+    @classmethod
+    def rowcount(cls):
+        """ get row count"""
+        return cls.__cursor.rowcount
