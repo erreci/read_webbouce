@@ -11,6 +11,10 @@ import mailparser
 from datetime import datetime
 #from datetime import date, timedelta
 #from time import sleep, time
+
+from database import Database
+
+
 __version__ = '0.1'
 '''
  using wrapper https://github.com/SpamScope/mail-parser
@@ -221,6 +225,9 @@ def unzipl(zip_file):
     return zip_files
 
 def main(argv):
+    if argv.db == 1:
+        if Database.connect("root", "", "mail", "127.0.0.1", "3306"):
+            print("ok db")
     if argv.zip:
        dozip(argv.zip)
     elif argv.path:
@@ -241,7 +248,8 @@ if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("-z", "--zip", type=str, help="using zip file")
-        parser.add_argument("-p", "--path", type=str, help="path of unzipped files")
+        parser.add_argument("-p", "--path", type=str, help="path of unzipped files", required=True)
+        parser.add_argument("-d", "--db", type=int, help="1 use db")
         parser.add_argument('-v', '--version', action='version', version='%(prog)s {} by ErreCi (2022)'.format(__version__))
         args = parser.parse_args()
         main(args)
