@@ -93,7 +93,7 @@ def dozip(zip_file):
         print("found: %d" % len(filesinzip))
         for i in filesinzip:
             # print(i)
-            parseEmail(i, zip_file)
+            parseEmailZip(i, zip_file)
             # break
 
 
@@ -105,10 +105,19 @@ def getContent(msgObj):
         body = msgObj.get_payload(decode=True)
 
 
-def parseEmail(email_file, zippa):
+def parseEmailZip(email_file, zippa):
     with zipfile.ZipFile(zippa, 'r') as zip:
         # read file in zip
         imgdata = zip.read(email_file)
+        parseEmail(imgdata)
+
+def parseEmailFile(email_file):
+    with open(email_file, 'rb') as emfile:
+        imgdata = emfile.read()
+        parseEmail(imgdata)
+
+def parseEmail(imgdata):
+
         try:
             # print(type(imgdata))
             # msg_raw = email.message_from_bytes(imgdata)
@@ -123,8 +132,7 @@ def parseEmail(email_file, zippa):
         except mailparser.MailParser.MailParserError as sss:
             print(sss)
         print("-", end='')
-        if email_file == "email_backup.021/506220_87a2ceedfetg@esa8_utexas_iphmx_com.eml":
-            print("pl")
+
         # if msg.text_not_managed:   # rfc822-header  content
         #     print(f"ddddd {msg.text_not_managed}" )
         '''
@@ -191,7 +199,6 @@ def parseEmail(email_file, zippa):
             mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}|text: {mail_text}")
         # print(f"Subj: {msg.subject}")
 
-
 def unzipl(zip_file):
     zippath = zip_file
     zip_files = []
@@ -215,16 +222,16 @@ def unzipl(zip_file):
 
 def main(argv):
     if argv.zip:
-       dozip(BASE_LOG + "/" + argv.zip)
+       dozip(argv.zip)
     elif argv.path:
         if os.path.isdir(argv.path):
             for subdir, dirs, files in os.walk(argv.path):
                 for file in files:
-                    print( os.path.join(subdir, file))
-                    # with open(os.path.join(subdir, file), 'r') as mail_file:
-                        # mail_file_obj = email.message_from_file(mail_file)
-                        # print(mail_file_obj)
-                    exit(1)
+                    # print( os.path.join(subdir, file))    with open(email_file, 'rb') as emfile:
+                    #         # read file in zip
+                    #         imgdata = emfile.read()
+                    parseEmailFile(os.path.join(subdir, file))
+                    # exit(1)
         else:
             print(f"The path {argv.path} doesnt exist")
             exit(1)
