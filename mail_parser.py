@@ -119,6 +119,7 @@ def parseEmailFile(email_file):
     with open(email_file, 'rb') as emfile:
         imgdata = emfile.read()
         parseEmail(imgdata)
+        exit(1)
 
 def parseEmail(imgdata):
 
@@ -201,7 +202,14 @@ def parseEmail(imgdata):
         # print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
         if mailid == '' and recipient_email == '':
             mylogs.info(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}|text: {mail_text}")
+        updatedb(mailid)
         # print(f"Subj: {msg.subject}")
+
+def updatedb(msgid):
+    Database.execute("select * from mail_email me where id = %s",(msgid))
+    dbrow = Database.fetchall()
+    if len(dbrow) > 0:
+        print(dbrow)
 
 def unzipl(zip_file):
     zippath = zip_file
