@@ -80,6 +80,7 @@ else:
     BASE_LOG = "C:/Users/LTAPPS01/temp/webbounce_emails"
 
 LOG_NAME = BASE_LOG + "/" + YYYY + "/" + MM + "/" + NOW + '_read_webbounce.log'
+USE_DB = 0
 
 try:
     os.makedirs(BASE_LOG + "/" + YYYY + "/" + MM)
@@ -136,7 +137,7 @@ def parseEmailFile(email_file):
     with open(email_file, 'rb') as emfile:
         imgdata = emfile.read()
         parseEmail(imgdata, email_file)
-        exit(1)
+        # exit(1)
 
 def parseEmail(imgdata,email_file):
 
@@ -217,15 +218,56 @@ def parseEmail(imgdata,email_file):
 
 
         #print(f"{email_file}|Date: {email_data}|from: {email_from}|mail:{recipient_email}|mail_id: {mailid}")
-       
+        if msg.body:
+            mail_text = filterBody(msg.body)
+        if mail_text == '':
+            print(msg.body)
         info_email = {'date': email_data,'email_from': email_from, 'mail':recipient_email,'mail_id':mailid, 'mail_text': mail_text}
 
         if mailid == '' or recipient_email == '':
             mylogs.info(f"{email_file}|Date: {info_email['date']}|from: {info_email['email_from']}|mail:{info_email['mail']}|mail_id: {info_email['mail_id']}|text: {info_email['mail_text']}")
         if mailid != '':
-            updatedb(info_email)
+            if USE_DB == 1:
+                updatedb(info_email)
 
-        # print(f"Subj: {msg.subject}")
+        print(f"filter: {mail_text}")
+def filterBody(body):
+    ''' pass text from multiple re for filter bouncing error '''
+
+    found = ''
+    regex = r"(reported error\s*[^\r]+)"
+    matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE)
+    if matches is not None or matches == 'Not found':
+        if matches.group():
+            found = matches.group()
+    if found == '':
+        regex = r"(abuse report\s*[^\n]+)"
+        matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
+        regex = r"(remote Server returned.+?;)"
+        matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
+        regex = r"(The following recipient\(s\) could not be reached.+)"
+        matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE | re.DOTALL )
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
+        regex = r"Your message wasn't delivered to.+"
+        matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE  )
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+
+
+    return found
+
 
 def updatedb(info_email):
     Database.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status) WHERE id = %s",(info_email['mail_id'],))
@@ -256,6 +298,7 @@ def unzipl(zip_file):
 
 def main(argv):
     if argv.db == 1:
+        USE_DB = 1
         # if Database.connect("usamaildb8", "8bdliamasu", "mail", "usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com", "3306"):
         if Database.connect("usamaildb8", "8bdliamasu", "mail", "localhost", "3306"):
 
