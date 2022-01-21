@@ -75,7 +75,7 @@ NOW = today.strftime("%Y%m%d")
 if sys.platform == 'darwin':
     BASE_LOG = "/Users/macmini/data/webbounce_emails"
 elif sys.platform == 'linux':
-    BASE_LOG = "/data/webbounce_emails"
+    BASE_LOG = "/data/log/webbounce_emails"
 else:
     BASE_LOG = "C:/Users/LTAPPS01/temp/webbounce_emails"
 
@@ -224,6 +224,7 @@ def parseEmail(imgdata,email_file):
             mylogs.info(f"{email_file}|Date: {info_email['date']}|from: {info_email['email_from']}|mail:{info_email['mail']}|mail_id: {info_email['mail_id']}|text: {info_email['mail_text']}")
         if mailid != '':
             updatedb(info_email)
+
         # print(f"Subj: {msg.subject}")
 
 def updatedb(info_email):
