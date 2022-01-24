@@ -235,6 +235,8 @@ def filterBody(body):
     ''' pass text from multiple re for filter bouncing error '''
 
     found = ''
+    # body = body.replace('\n', ' ').replace('\r', '')
+
     regex = r"(reported error\s*[^\r]+)"
     matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE)
     if matches is not None or matches == 'Not found':
@@ -253,6 +255,12 @@ def filterBody(body):
             if matches.group():
                 found = matches.group()
     if found == '':
+        regex = r"remote Server returned(.+?)original"
+        matches = re.search(regex, body, re.IGNORECASE | re.DOTALL)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
         regex = r"(The following recipient\(s\) could not be reached.+)"
         matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE | re.DOTALL )
         if matches is not None or matches == 'Not found':
@@ -264,8 +272,36 @@ def filterBody(body):
         if matches is not None or matches == 'Not found':
             if matches.group():
                 found = matches.group()
-
-
+    if found == '':
+        regex = r"(the mail system\s*\n.*said:.*)\n---"
+        matches = re.search(regex, body, re.IGNORECASE | re.DOTALL)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
+        regex = r"The response from the remote server was:\s*\n+(.+)\n+"
+        matches = re.search(regex, body, re.IGNORECASE )
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
+        regex = r">>>(.+?)(\n{2}|---)"
+        matches = re.search(regex, body, re.IGNORECASE | re.DOTALL)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group(1)
+    if found == '':
+        regex = r"Delivery has failed to these recipients or groups:\n{2}(.+\n.+)\n+"
+        matches = re.search(regex, body,  re.IGNORECASE | re.DOTALL)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
+    if found == '':
+        regex = r"The following addresses had permanent fatal errors(.+)---\s*mail_boundary\s*---"
+        matches = re.search(regex, body,  re.IGNORECASE | re.DOTALL)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group()
     return found
 
 
