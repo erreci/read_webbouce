@@ -221,7 +221,7 @@ def parseEmail(imgdata,email_file):
         if msg.body:
             mail_text = filterBody(msg.body)
         if mail_text == '':
-            print(msg.body)
+            mail_text = msg.body[0:1000]
         info_email = {'date': email_data,'email_from': email_from, 'mail':recipient_email,'mail_id':mailid, 'mail_text': mail_text}
 
         if mailid == '' or recipient_email == '':
@@ -231,6 +231,7 @@ def parseEmail(imgdata,email_file):
                 updatedb(info_email)
 
         print(f"filter: {mail_text}")
+
 def filterBody(body):
     ''' pass text from multiple re for filter bouncing error '''
 
@@ -280,7 +281,7 @@ def filterBody(body):
                 found = matches.group()
     if found == '':
         regex = r"The response from the remote server was:\s*\n+(.+)\n+"
-        matches = re.search(regex, body, re.IGNORECASE )
+        matches = re.search(regex, body, re.IGNORECASE)
         if matches is not None or matches == 'Not found':
             if matches.group():
                 found = matches.group()
@@ -292,21 +293,38 @@ def filterBody(body):
                 found = matches.group(1)
     if found == '':
         regex = r"Delivery has failed to these recipients or groups:\n{2}(.+\n.+)\n+"
-        matches = re.search(regex, body,  re.IGNORECASE | re.DOTALL)
+        matches = re.search(regex, body, re.MULTILINE | re.IGNORECASE)
         if matches is not None or matches == 'Not found':
             if matches.group():
-                found = matches.group()
+                found = matches.group(1)
     if found == '':
         regex = r"The following addresses had permanent fatal errors(.+)---\s*mail_boundary\s*---"
         matches = re.search(regex, body,  re.IGNORECASE | re.DOTALL)
         if matches is not None or matches == 'Not found':
             if matches.group():
+                found = matches.group(1)
+    if found == '':
+        regex = r"reason:(.+)\n*"
+        matches = re.search(regex, body, re.IGNORECASE | re.MULTILINE)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
                 found = matches.group()
+    if found == '':
+        regex = r"Sorry, we were unable to deliver your message to the following address.(.+)--- mail_boundary ---"
+        matches = re.search(regex, body,  re.IGNORECASE | re.DOTALL)
+        if matches is not None or matches == 'Not found':
+            if matches.group():
+                found = matches.group(1)
     return found
 
 
 def updatedb(info_email):
-    Database.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status) WHERE id = %s",(info_email['mail_id'],))
+    # check if present in first db
+    Database.execute("SELECT id WHERE id = %s", (info_email['mail_id'],))
+    if Database.rowcount() > 0:
+
+
+    Database.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status) WHERE id = %s", (info_email['mail_id'],))
     Database.commit()
     if Database.rowcount() > 0:
         mylogs.info(f"Updated mail_id: {info_email['mail_id']}")
@@ -335,10 +353,10 @@ def unzipl(zip_file):
 def main(argv):
     if argv.db == 1:
         USE_DB = 1
-        # if Database.connect("usamaildb8", "8bdliamasu", "mail", "usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com", "3306"):
-        if Database.connect("usamaildb8", "8bdliamasu", "mail", "localhost", "3306"):
-
-            print("ok db")
+        first_db = Database.connect("usamaildb8", "8bdliamasu", "mail", "usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com", "3306")
+        second_db =  Database.connect("root", "", "mail", "localhost", "3307")
+        if first_db and second_db:
+            print("db ok")
         else:
             print('failed to connect db')
             exit(1)
