@@ -17,7 +17,8 @@ class Database:
                 user=username, password=password, database=database, host=host, port=int(port))
             cls.__connection.autocommit = False
             cls.__cursor = cls.__connection.cursor()
-            return True
+            #return True
+            return cls
         except:
             logging.exception("Failed to connect!")
             cls.__connection = None

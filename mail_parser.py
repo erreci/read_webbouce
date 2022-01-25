@@ -12,8 +12,8 @@ from datetime import datetime
 #from datetime import date, timedelta
 #from time import sleep, time
 
-from database import Database
-
+# from database import Database
+import mysql.connector as db
 
 __version__ = '0.1'
 '''
@@ -103,6 +103,10 @@ onstream.setFormatter(streamformat)
 mylogs.addHandler(onfile)
 mylogs.addHandler(onstream)
 
+first_db = False
+second_db = False
+second_db_cur = False
+first_db_cur = False
 
 def dozip(zip_file):
     if not os.path.exists(zip_file):
@@ -130,7 +134,7 @@ def parseEmailZip(email_file, zippa):
         # read file in zip
         imgdata = zip.read(email_file)
         parseEmail(imgdata,email_file)
-        exit(1)
+        # exit(1)
 
 
 def parseEmailFile(email_file):
@@ -138,6 +142,7 @@ def parseEmailFile(email_file):
         imgdata = emfile.read()
         parseEmail(imgdata, email_file)
         # exit(1)
+
 
 def parseEmail(imgdata,email_file):
 
@@ -154,7 +159,7 @@ def parseEmail(imgdata,email_file):
                 raise TypeError('Invalid message type: %s' % type(imgdata))
         except mailparser.MailParser.MailParserError as sss:
             print(sss)
-        print("-", end='')
+        # print("-", end='')
 
         # if msg.text_not_managed:   # rfc822-header  content
         #     print(f"ddddd {msg.text_not_managed}" )
@@ -189,9 +194,9 @@ def parseEmail(imgdata,email_file):
                 if matches is not None or matches == 'Not found':
                     mailid = matches.group(1)
             else:
-                mailid = "not found"
+                mailid = ""
         #    get recipient mail
-        recipient_email = 'not found'
+        recipient_email = ''
         #regex = r"[a-z0-9]+[\._]?[a-z0-9]+[@][\w\-]+[.]\w{2,3}"
         regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
         mail_text = ''
@@ -213,7 +218,7 @@ def parseEmail(imgdata,email_file):
             if matches is not None or matches == 'Not found':
                 if matches.group():
                     recipient_email = matches.group()
-        if recipient_email == 'not found' and email_from != '':
+        if recipient_email == '' and email_from != '':
             recipient_email = email_from
 
 
@@ -223,14 +228,15 @@ def parseEmail(imgdata,email_file):
         if mail_text == '':
             mail_text = msg.body[0:1000]
         info_email = {'date': email_data,'email_from': email_from, 'mail':recipient_email,'mail_id':mailid, 'mail_text': mail_text}
-
-        if mailid == '' or recipient_email == '':
+        print(f"ID:{mailid}")
+        # if mailid == '' or recipient_email == '':
+        if mailid == '':
             mylogs.info(f"{email_file}|Date: {info_email['date']}|from: {info_email['email_from']}|mail:{info_email['mail']}|mail_id: {info_email['mail_id']}|text: {info_email['mail_text']}")
         if mailid != '':
             if USE_DB == 1:
                 updatedb(info_email)
 
-        print(f"filter: {mail_text}")
+        
 
 def filterBody(body):
     ''' pass text from multiple re for filter bouncing error '''
@@ -320,14 +326,32 @@ def filterBody(body):
 
 def updatedb(info_email):
     # check if present in first db
-    Database.execute("SELECT id WHERE id = %s", (info_email['mail_id'],))
-    if Database.rowcount() > 0:
-
-
-    Database.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status) WHERE id = %s", (info_email['mail_id'],))
-    Database.commit()
-    if Database.rowcount() > 0:
-        mylogs.info(f"Updated mail_id: {info_email['mail_id']}")
+    first_db_cur.execute("SELECT status FROM mail_email WHERE id = %s", (info_email['mail_id'],))
+    result = first_db_cur.fetchone()
+    if result != None:       
+        # update only if status is sent
+        if result[0]=='sent':
+            first_db_cur.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status), status_details = IF(status = 'bounced', %s , status_details) WHERE id = %s", (info_email['mail_text'],info_email['mail_id'],))
+            first_db.commit()
+            if first_db_cur.rowcount > 0:
+                mylogs.info(f"Updated first db mail_id: {info_email['mail_id']}")
+            else:
+                mylogs.info(f"Error Updated first db mail_id: {info_email['mail_id']}")
+    else:
+        # check if present in first db
+        second_db_cur.execute("SELECT status FROM mail_email WHERE id = %s", (info_email['mail_id'],))
+        result = second_db_cur.fetchone()
+        if result != None:                
+            if result[0]=='sent':
+                second_db_cur.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status), status_details = IF(status = 'bounced', %s , status_details) WHERE id = %s", (info_email['mail_text'],info_email['mail_id'],))
+                second_db.commit()
+                if first_db_cur.rowcount > 0:
+                    mylogs.info(f"Updated first db mail_id: {info_email['mail_id']}")
+                else:
+                    mylogs.info(f"Error Updated first db mail_id: {info_email['mail_id']}")
+        else:
+            mylogs.info(f"Error NO mail_id on both db: {info_email['mail_id']}")
+    return
     
 def unzipl(zip_file):
     zippath = zip_file
@@ -351,16 +375,26 @@ def unzipl(zip_file):
     return zip_files
 
 def main(argv):
+    global USE_DB
+    global first_db
+    global second_db
+    global second_db_cur
+    global first_db_cur
     if argv.db == 1:
-        USE_DB = 1
-        first_db = Database.connect("usamaildb8", "8bdliamasu", "mail", "usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com", "3306")
-        second_db =  Database.connect("root", "", "mail", "localhost", "3307")
+        
+        first_db = db.connect(
+                user='usamaildb8', password='8bdliamasu', database='mail', host='usamaildb8.ceiimqxfndkz.us-east-1.rds.amazonaws.com', port=3306)
+        second_db =  db.connect(user="root", password="", database="mail", host="localhost", port=3307)
         if first_db and second_db:
             print("db ok")
+            first_db.autocommit = False
+            first_db_cur = first_db.cursor()
+            second_db.autocommit = False
+            second_db_cur = second_db.cursor()
+            USE_DB = 1
         else:
             print('failed to connect db')
             exit(1)
-
 
     if argv.zip:
        dozip(argv.zip)
