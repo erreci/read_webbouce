@@ -231,7 +231,7 @@ def parseEmail(imgdata,email_file):
         print(f"ID:{mailid}")
         # if mailid == '' or recipient_email == '':
         if mailid == '':
-            mylogs.info(f"{email_file}|Date: {info_email['date']}|from: {info_email['email_from']}|mail:{info_email['mail']}|mail_id: {info_email['mail_id']}|text: {info_email['mail_text']}")
+            mylogs.info(f"{email_file}|Date: {info_email['date']}|from: {info_email['email_from']}|mail:{info_email['mail']}|mail_id: {info_email['mail_id']}")
         if mailid != '':
             if USE_DB == 1:
                 updatedb(info_email)
@@ -330,28 +330,54 @@ def updatedb(info_email):
     result = first_db_cur.fetchone()
     if result != None:       
         # update only if status is sent
-        if result[0]=='sent':
-            first_db_cur.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status), status_details = IF(status = 'bounced', %s , status_details) WHERE id = %s", (info_email['mail_text'],info_email['mail_id'],))
+        if result[0] != 'bounced':
+            first_db_cur.execute("UPDATE mail_email SET status = 'bounced', status_details = %s , status_time = %s WHERE id = %s", (info_email['mail_text'],info_email['date'],info_email['mail_id'],))
             first_db.commit()
             if first_db_cur.rowcount > 0:
                 mylogs.info(f"Updated first db mail_id: {info_email['mail_id']}")
             else:
                 mylogs.info(f"Error Updated first db mail_id: {info_email['mail_id']}")
+        checklastbounced(first_db_cur, first_db, info_email)
     else:
         # check if present in first db
         second_db_cur.execute("SELECT status FROM mail_email WHERE id = %s", (info_email['mail_id'],))
         result = second_db_cur.fetchone()
         if result != None:                
-            if result[0]=='sent':
-                second_db_cur.execute("UPDATE  mail_email SET status = IF(status = 'sent', 'bounced', status), status_details = IF(status = 'bounced', %s , status_details) WHERE id = %s", (info_email['mail_text'],info_email['mail_id'],))
+            if result[0] !='bounced':
+                second_db_cur.execute("UPDATE mail_email SET status = 'bounced', status_details = %s , status_time = %s WHERE id = %s", (info_email['mail_text'],info_email['date'],info_email['mail_id'],))
                 second_db.commit()
-                if first_db_cur.rowcount > 0:
+                if second_db_cur.rowcount > 0:
                     mylogs.info(f"Updated first db mail_id: {info_email['mail_id']}")
                 else:
                     mylogs.info(f"Error Updated first db mail_id: {info_email['mail_id']}")
+            checklastbounced(second_db_cur, second_db, info_email)
         else:
             mylogs.info(f"Error NO mail_id on both db: {info_email['mail_id']}")
     return
+
+def checklastbounced(db_cur, db, info_email):
+    db_cur.execute("SELECT me.* FROM mail_email me LEFT JOIN mail_email mm ON me.address = mm.address WHERE me.id = %s order by added_time desc limit 4", (info_email['mail_id'],))
+    result = db_cur.fetchall()
+    statuses = [ a[8] for a in result ]
+    paper = [ a[2] for a in result ][0]
+    destemail = [ a[4] for a in result ][0]
+    print(statuses);
+    if 'sent' in statuses:
+        return False
+    else:        
+        # add user in unsubscribe        
+        now = datetime.now()
+        formatted_date = now.strftime('%Y-%m-%d %H:%M:%S')
+        db_cur.execute("SELECT address FROM mail_blacklistedaddress WHERE address = %s", (destemail,))
+        result = db_cur.fetchone()
+        if result == None:   
+            db_cur.execute("INSERT INTO mail_blacklistedaddress (paper, added_time, address, reason, comment, active) VALUES(%s, %s, %s, %s, %s, 1)",( paper,formatted_date, destemail, 'bounced', 'Bounced out after multiple unsuccessful messages', ))
+            db.commit()
+            mylogs.info(f"mail_id: {info_email['mail_id']} {destemail} add in unsubscrition table")
+            return True
+        else:
+            mylogs.info(f"mail_id: {info_email['mail_id']} {destemail} already present in mail_blacklistedaddress table")
+    
     
 def unzipl(zip_file):
     zippath = zip_file
@@ -388,9 +414,9 @@ def main(argv):
         if first_db and second_db:
             print("db ok")
             first_db.autocommit = False
-            first_db_cur = first_db.cursor()
+            first_db_cur = first_db.cursor(buffered=True)
             second_db.autocommit = False
-            second_db_cur = second_db.cursor()
+            second_db_cur = second_db.cursor(buffered=True)
             USE_DB = 1
         else:
             print('failed to connect db')
