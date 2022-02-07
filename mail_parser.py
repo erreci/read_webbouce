@@ -356,7 +356,7 @@ def updatedb(info_email):
     return
 
 def checklastbounced(db_cur, db, info_email):
-    db_cur.execute("SELECT me.* FROM mail_email me LEFT JOIN mail_email mm ON me.address = mm.address WHERE me.id = %s order by added_time desc limit 4", (info_email['mail_id'],))
+    db_cur.execute("SELECT me.* FROM mail_email me WHERE me.address IN ( SELECT mm.address FROM mail_email mm WHERE mm.id = %s ) order by added_time desc limit 4;", (info_email['mail_id'],))
     result = db_cur.fetchall()
     statuses = [ a[8] for a in result ]
     paper = [ a[2] for a in result ][0]
