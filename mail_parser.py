@@ -9,6 +9,8 @@ import zipfile
 import logging
 import mailparser
 from datetime import datetime
+import configparser
+
 #from datetime import date, timedelta
 #from time import sleep, time
 
@@ -347,9 +349,9 @@ def updatedb(info_email):
                 second_db_cur.execute("UPDATE mail_email SET status = 'bounced', status_details = %s , status_time = %s WHERE id = %s", (info_email['mail_text'],info_email['date'],info_email['mail_id'],))
                 second_db.commit()
                 if second_db_cur.rowcount > 0:
-                    mylogs.info(f"Updated first db mail_id: {info_email['mail_id']}")
+                    mylogs.info(f"Updated second db mail_id: {info_email['mail_id']}")
                 else:
-                    mylogs.info(f"Error Updated first db mail_id: {info_email['mail_id']}")
+                    mylogs.info(f"Error Updated second db mail_id: {info_email['mail_id']}")
             checklastbounced(second_db_cur, second_db, info_email)
         else:
             mylogs.info(f"Error NO mail_id on both db: {info_email['mail_id']}")
@@ -436,6 +438,35 @@ def main(argv):
         else:
             print(f"The path {argv.path} doesnt exist")
             exit(1)
+    elif argv.pathtrg:
+        print("read trg")
+        if os.path.isdir(argv.pathtrg):
+            config = configparser.ConfigParser()
+            for subdir, dirs, files in os.walk(argv.pathtrg):
+                for file in files:
+                    #print( os.path.join(subdir, file))
+                    if file.lower().endswith(".trg".lower()):
+
+
+                        trgfile = os.path.join(subdir, file)
+                        config.read(trgfile)
+                        trgpath = config.get('EMAIL','path')
+                        trgfname = config.get('EMAIL','fname')
+                        os.rename(trgfile, trgfile + ".wrk")
+                        emailfile = os.path.join(trgpath, trgfname)
+                    #with open(os.path.join(trgpath,trgfname), 'rb') as emfile:
+                    #         # read file in zip
+                    #         imgdata = emfile.read()
+                        parseEmailFile(emailfile)
+                    # move email in done
+                        os.rename(emailfile, os.path.join(trgpath + "/done/" + trgfname))
+                    # remove trg
+                        os.remove(trgfile + ".wrk")
+                        #exit(1)
+
+        else:
+            print(f"The path {argv.pathtrg} doesnt exist")
+            exit(1)
 
 
 if __name__ == "__main__":
@@ -443,6 +474,7 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument("-z", "--zip", type=str, help="using zip file")
         parser.add_argument("-p", "--path", type=str, help="path of unzipped files" )
+        parser.add_argument("-t", "--pathtrg", type=str, help="path of trg files" )
         parser.add_argument("-d", "--db", type=int, help="1 use db", required=True)
         parser.add_argument('-v', '--version', action='version', version='%(prog)s {} by ErreCi (2022)'.format(__version__))
         args = parser.parse_args()
