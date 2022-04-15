@@ -422,7 +422,7 @@ def main(argv):
             USE_DB = 1
         else:
             print('failed to connect db')
-            exit(1)
+            # exit(1)
 
     if argv.zip:
        dozip(argv.zip)
@@ -437,12 +437,13 @@ def main(argv):
                     # exit(1)
         else:
             print(f"The path {argv.path} doesnt exist")
-            exit(1)
+           
     elif argv.pathtrg:
         print("read trg")
         if os.path.isdir(argv.pathtrg):
             config = configparser.ConfigParser()
             for subdir, dirs, files in os.walk(argv.pathtrg):
+                print(f"Found {len(files)} files in {argv.pathtrg}")
                 for file in files:
                     #print( os.path.join(subdir, file))
                     if file.lower().endswith(".trg".lower()):
@@ -466,20 +467,38 @@ def main(argv):
 
         else:
             print(f"The path {argv.pathtrg} doesnt exist")
-            exit(1)
+            
+    print("END")
 
 
 if __name__ == "__main__":
-    try:
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-z", "--zip", type=str, help="using zip file")
-        parser.add_argument("-p", "--path", type=str, help="path of unzipped files" )
-        parser.add_argument("-t", "--pathtrg", type=str, help="path of trg files" )
-        parser.add_argument("-d", "--db", type=int, help="1 use db", required=True)
-        parser.add_argument('-v', '--version', action='version', version='%(prog)s {} by ErreCi (2022)'.format(__version__))
-        args = parser.parse_args()
-        main(args)
 
-    except KeyboardInterrupt:
-        mylogs.error("Process interrupted by KeyboardInterrupt")
+    pid = str(os.getpid())
+    pidfile = "/tmp/mail_parser.pid"
+
+    if os.path.isfile(pidfile):
+        print ("%s already exists, exiting" % pidfile)
+        sys.exit()
+
+    with open(pidfile,"w") as file_object:
+        file_object.write(pid)
+        
+    try:
+        try:
+            print ("Run with %s" % pidfile)
+            parser = argparse.ArgumentParser()
+            parser.add_argument("-z", "--zip", type=str, help="using zip file")
+            parser.add_argument("-p", "--path", type=str, help="path of unzipped files" )
+            parser.add_argument("-t", "--pathtrg", type=str, help="path of trg files" )
+            parser.add_argument("-d", "--db", type=int, help="1 use db", required=True)
+            parser.add_argument('-v', '--version', action='version', version='%(prog)s {} by ErreCi (2022)'.format(__version__))
+            args = parser.parse_args()
+            main(args)
+
+        except KeyboardInterrupt:
+            mylogs.error("Process interrupted by KeyboardInterrupt")
+       
+    finally:
+        os.unlink(pidfile)
+    
 
